@@ -1,0 +1,206 @@
+
+
+#########################################################
+#                                                       #
+#         SOLAX.   Real Time Data via WifI 3 Dongle     #
+#                                                       #
+#                 SOLAX X1 mini G4                      #
+#                                                       #
+#                   Thomas J. Blome                     #
+#                                                       #
+#                  November 2023                        #
+#                                                       #
+#                    Version 2.0'                       #
+#########################################################
+#
+# ADR 00 Daten: AC Output Voltage   Format
+# ADR 01 Daten: AC Current (INV).   Format
+# ADR 02 Daten: AC Frequency.       Format
+# ADR 03 Daten: AC Power.  (INV)    Format 
+# ADR 04 Daten: DC Voltage (PV)     Format
+# ADR 05 Daten:    Format
+# ADR 06 Daten:    Format
+# ADR 07 Daten:    Format
+# ADR 08 Daten: DC Current (PV)     Format
+# ADR 09 Daten:    Format
+# ADR 10 Daten:    Format
+# ADR 11 Daten:    Format
+# ADR 12 Daten:    Format
+# ADR 13 Daten: DC Power (PV).       Format
+#
+# ADR 19 Daten: Total DC Power.    (PV).       Format
+# ADR 21 Daten: Total DC Power day (PV).       Format
+# ADR 22 Daten: AC Export Power        .       Format
+#
+#
+# SOLAX X1 mini G4 1.5K. PV Wintergarten (PV WG)
+# ----------------------------------------------
+#
+#
+#solax1localbegin    
+  - platform: rest
+    authentication: digest
+    scan_interval: 5
+    resource: http://192.168.178.153/
+    payload: "optType=ReadRealTimeData&pwd=xxxx"
+    method: POST
+    headers: 
+      X-Forwarded-For: 5.8.8.8
+    name: "solax1_rest_local"
+    json_attributes:
+       - type
+       - sn
+       - ver
+       - Data
+       - Information
+    value_template: 'OK'  # dummy value, not used; avoids the "State max length is 255 characters" error
+#solax1localend
+
+template:
+   - sensor:
+#solaxl1ocalbegin
+       - name: solax1_local
+         state: > 
+               {% if state_attr('sensor.solax1_rest_local', 'sn') == "xxxx"  %}{{ now().strftime("%H:%M:%S") }}
+               {% else %}{{ (states('sensor.solax1_local')) }}{% endif %}
+         attributes: 
+           sn: >-
+               {% if state_attr('sensor.solax1_rest_local', 'sn') == "xxxx" %}{{ (state_attr('sensor.solax1_rest_local', 'sn')) }}
+               {% else %}{{ (state_attr('sensor.solax1_local', 'sn')) }}{% endif %}
+           ver: >-
+               {% if state_attr('sensor.solax1_rest_local', 'sn') == "xxxx" %}{{ (state_attr('sensor.solax1_rest_local', 'ver')) }}
+               {% else %}{{ (state_attr('sensor.solax1_local', 'ver')) }}{% endif %}
+           type: >-
+               {% if state_attr('sensor.solax1_rest_local', 'sn') == "xxxx" %}{{ (state_attr('sensor.solax1_rest_local', 'type')) }}
+               {% else %}{{ (state_attr('sensor.solax1_local', 'type')) }}{% endif %}
+           Data: >-
+               {% if state_attr('sensor.solax1_rest_local', 'sn') == "xxxx" %}{{ (state_attr('sensor.solax1_rest_local', 'Data')) }}
+               {% else %}{{ (state_attr('sensor.solax1_local', 'Data')) }}{% endif %}
+           Information: >-
+               {% if state_attr('sensor.solax1_rest_local', 'sn') == "xxxx" %}{{ (state_attr('sensor.solax1_rest_local', 'Information')) }}
+               {% else %}{{ (state_attr('sensor.solax1_local', 'Information')) }}{% endif %}
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 AC Output Voltage"
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[0] / 10 }}"
+         unit_of_measurement: "V"
+         device_class: "voltage"
+         icon: 'mdi:sine-wave'
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 AC Current"
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[1] / 10 }}"
+         unit_of_measurement: "A"
+         device_class: "current"
+         icon: 'mdi:sine-wave'
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 AC Frequency"  
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[2] / 100 }}"
+         unit_of_measurement: "Hz"
+         device_class: "frequency"  
+         icon: 'mdi:sine-wave'
+
+       # compatible Solax X1 mini G4! 
+       - name: "Solax1 AC Power"
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[3]   }}"
+         unit_of_measurement: "W"
+         device_class: "Power"
+         icon: 'mdi:sine-wave'
+
+
+       # compatible Solax X1 mini G4!  
+       - name: "Solax1 PV Voltage"
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[4] /10 | float  }}"
+         unit_of_measurement: "V"
+         device_class: "voltage"
+         icon: 'mdi:solar-panel'
+
+
+       # compatible Solax X1 mini G4!   
+       - name: "Solax1 PV Current"
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[8] / 10 }}"
+         unit_of_measurement: "A"
+         device_class: "current"  
+         icon: 'mdi:solar-panel'
+
+
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 Inverter Operation Mode"
+         state: >
+          {%   if state_attr('sensor.solax1_local', 'Data')[10] ==  0 %}Waiting
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  1 %}Checking
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  2 %}Normal
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  3 %}Off
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  4 %}Permanent Fault
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  5 %}Updating
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  6 %}EPS Check
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  7 %}EPS Mode
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  8 %}Self Test
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] ==  9 %}Idle
+          {% elif state_attr('sensor.solax1_local', 'Data')[10] == 10 %}Standby
+          {% else %}I dont know{% endif %}
+
+
+        #  
+
+       # compatible Solax X1 mini G4! 
+       - name: "Solax1 PV Power"
+         unit_of_measurement: "W"
+         state: "{{ state_attr('sensor.solax1_local', 'Data')[13]  }}"
+         device_class: "power"
+         icon: 'mdi:solar-panel'
+
+       - name: "Solax1 Energy Total"
+         unit_of_measurement: "kWh"
+         state: "{{ state_attr('sensor.Solax1_Rest_Local', 'Data')[19] / 10 }}" 
+         device_class: energy
+         state_class: total_increasing
+         icon: 'mdi:solar-panel'
+
+       - name: "Solax1 Energy today"
+         unit_of_measurement: "kWh"
+         state: "{{ state_attr('sensor.Solax1_Rest_Local', 'Data')[21] / 10  }}" 
+         device_class: energy
+         state_class: total_increasing
+         icon: 'mdi:solar-panel'
+
+       - name: "Solax1 AC Export Power"
+         unit_of_measurement: "kWh"
+         state: "{{ state_attr('sensor.Solax1_Rest_Local', 'Data')[22]   }}" 
+         device_class: energy
+         #state_class: total_increasing
+         icon: 'mdi:sine-wave'
+
+
+
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 Inverter Nominal Power"
+         #state: "{{ state_attr('sensor.solax1_local', 'Information')[0] | float | round(0) }}"
+         state: "{{ state_attr('sensor.solax1_local', 'Information')[0] | float }}"
+         unit_of_measurement: "kW"
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 Module SN"
+         state: "{{ state_attr('sensor.solax1_local', 'sn') }}"
+
+        # compatible Solax X1 mini G4!
+       - name: "Solax1 module fw version"
+         state: "{{ state_attr('sensor.solax1_local', 'ver') }}"
+
+       # compatible Solax X1 mini G4!
+       - name: "Solax1 Inverter SN"
+         state: "{{ state_attr('sensor.solax1_local', 'Information')[2] }}"
+
+        # compatible Solax X1 mini G4!    
+       - name: "Solax1 Inverter Information"
+         state: "{{ state_attr('sensor.solax1_local', 'Information') }}"
+
+
+#solax1localend
+
+
+
+
